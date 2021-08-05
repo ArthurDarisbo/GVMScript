@@ -3,10 +3,11 @@ import xml.etree.ElementTree as ET
 from auxlib import *
 
 main_actions = ("Create Targets and Tasks","Update Tasks","Get Latest Reports","Perform a Sanity Check")
-sub_menu = ("Create Targets", "Create Tasks","Create Targets and Tasks","Create Targets and Create/Update Tasks")
+sub_menu = ("Create Targets", "Create Tasks","Create Targets and Tasks","Update Tasks")
 div = "================================================================"
 
-def parse_data(cmd_output, data_type): # Parses the output from CLI to a list
+def parse_data(xml, data_type): # Gets and parses the output from CLI to a list
+	cmd_output = gvmscript.run_cmd(xml)
 	root = ET.fromstring(cmd_output).findall(data_type)
 	parsed_data = []
 	try:
@@ -89,23 +90,25 @@ def main():
 	options["main_action"] = show_list(main_actions, "Main action")
 
 	if "Create Targets" in options["main_action"]:
-		parsed_output = parse_data(gvmscript.run_cmd("get_port_lists"), "port_list")
-		options["portlist"] = show_data(parsed_output, "Port list")
+		parsed_output = parse_data("<get_port_lists/>", "port_list")
+		options["port_list"] = show_data(parsed_output, "Port list")
 
 	if "Tasks" in options["main_action"]:
-		parsed_output = parse_data(gvmscript.run_cmd("get_configs"), "config")
+		parsed_output = parse_data("<get_configs/>", "config")
 		options["scan_config"] = show_data(parsed_output, "Scan config")
 
-		parsed_output = parse_data(gvmscript.run_cmd("get_alerts"), "alerts")
-		options["Alerts"] = show_data(parsed_output, "Alerts")
+		parsed_output = parse_data("<get_alerts/>", "alerts")
+		options["alerts"] = show_data(parsed_output, "Alerts")
 
-		parsed_output = parse_data(gvmscript.run_cmd("get_schedules"), "schedule")
+		parsed_output = parse_data("<get_schedules/>", "schedule")
 		options["schedule"] = show_data(parsed_output, "Schedule")
 
-		parsed_output = parse_data(gvmscript.run_cmd("get_scanners"), "scanner")
+		parsed_output = parse_data("<get_scanners/>", "scanner")
 		options["scanner"] = show_data(parsed_output, "Scanner")
 
 		order = ["Sequential","Random","Reverse"]
 		options["order"] = show_list(order, "Scan order")
+
+		logger.info(str(options))
 
 	return options
