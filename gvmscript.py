@@ -1,5 +1,6 @@
-import subprocess, datetime
+import subprocess
 from auxlib import *
+import xml.etree.ElementTree as ET
 
 def run_cmd(xml): # Build a command with a XML object, sends it to GVM CLI and captures the response
    try:
@@ -19,12 +20,15 @@ def authenticate(): # Authentication test
    else:
       return True
 
-def create_target(host, options):
+def create_target(host, targets, options):
    ns_result = nslookup(host)
 
-   if ns_result == None and config["settings"]["ignore_ping"]:
+   if ns_result == None and config["settings"]["ignore_ping"] == "False":
       print_log("error", "Unable to ping host "+host+". Skipping...")
       return None
+
+   if host in targets:
+      print_log("warning", "A target with host "+host+" already exists")
 
    if "name" in ns_result:
       hostname = ns_result.split("name = ")[1].split("\n")[0][:-1]
@@ -32,7 +36,7 @@ def create_target(host, options):
       hostname = host
 
    if config["settings"]["custom_target_sufix"] == "True":
-      
+      hostname += " - " + config["settings"]["target_sufix"]
 
    xml = "<create_target>"
    xml += "<name>"+hostname+"</name>"
@@ -51,14 +55,95 @@ def create_target(host, options):
       id = cmd_output.split("id=\"")[1].split("\"")[0]
       return id
    elif "Target exists already" in cmd_output:
-      print_log("info", "Target for host "+host+" already exists. Skipping...")
+      print_log("warning", "Same target for host "+host+" already exists. Skipping...")
       return None
    else:
       print_log("error", "Unable to create target for host "+host)
       return None
 
-def create_task(host, options):
-   pass
+def create_task(host, targets, options):
+   ns_result = nslookup(host)
+
+   if ns_result == None and config["settings"]["ignore_ping"] == "False":
+      print_log("error", "Unable to ping host "+host+". Skipping...")
+      return None
+
+   if "name" in ns_result:
+      hostname = ns_result.split("name = ")[1].split("\n")[0][:-1]
+   else:
+      hostname = host
+
+   if host not in targets:
+      print_log("error", "Host "+host+" has no targets. Unable to create a task")
+      return None
+
+   if config["settings"]["custom_task_sufix"] == "True":
+      hostname += " - " + config["settings"]["task_sufix"]
+
+   if "target_id" not in options:
+      root = ET.fromstring(targets).findall("target")
+      try:
+         for x in root:
+            id = x.attrib["id"]
+            hosts = x.find("hosts").text
+            if hosts == host:
+               options["target_id"] = id
+      except KeyError:
+         print_log("error", "Host "+host+" has no targets. Create a target first")
+         return None
+
+   xml = "<create_task>"
+   xml += "<name>"+hostname+"</name>"
+   xml += "<target id='"+options["target_id"]+"'/>"
+   xml += "<config id='"+options["scan_config"]+"'/>"
+   xml += "<scanner id='"+options["scanner"]+"'/>"
+
+   if(config["settings"]["use_comments"] == "True"):
+      xml += "<comment>"+config["settings"]["comment"]+"</comment>"
+   if options["alerts"] != None:
+      xml += "<alert id='"+options["alerts"]+"'/>"  
+   if options["schedule"] != None:
+      xml += "<schedule id='"+options["schedule"]+"'/>"  
+   
+   xml += "<alterable>"+config["parameters"]["alterable_task"]+"</alterable>"
+   xml += "<hosts_ordering>"+options["order"]+"</hosts_ordering>"
+   xml += "<preferences>"
+   xml += "<preference>"
+   xml += "<scanner_name>in_assets</scanner_name>"
+   xml += "<value>"+config["parameters"]["result_assets"]+"</value>"
+   xml += "</preference>"
+   xml += "<preference>"
+   xml += "<scanner_name>assets_apply_overrides</scanner_name>"
+   xml += "<value>"+config["parameters"]["overrides"]+"</value>"
+   xml += "</preference>"
+   xml += "<preference>"
+   xml += "<scanner_name>auto_delete</scanner_name>"
+   xml += "<value>"+config["parameters"]["auto_delete"]+"</value>"
+   xml += "</preference>"
+   xml += "<preference>"
+   xml += "<scanner_name>auto_delete_data</scanner_name>"
+   xml += "<value>"+config["parameters"]["delete_over"]+"</value>"
+   xml += "</preference>"
+   xml += "<preference>"
+   xml += "<scanner_name>max_checks</scanner_name>"
+   xml += "<value>"+config["parameters"]["max_nvt"]+"</value>"
+   xml += "</preference>" 
+   xml += "<preference>"
+   xml += "<scanner_name>max_hosts</scanner_name>"
+   xml += "<value>"+config["parameters"]["max_scanned"]+"</value>"
+   xml += "</preference>"
+   xml += "</preferences>"
+   xml += "</create_task>"
+
+   cmd_output = run_cmd(xml)
+
+   if "status=\"201\"" in cmd_output:
+      print_log("success", "Successfully created a task for host "+host)
+      id = cmd_output.split("id=\"")[1].split("\"")[0]
+      return id
+   else:
+      print_log("error", "Unable to create target for host "+host)
+      return None
 
 def nslookup(host): # Pings target and captures the response
    try:

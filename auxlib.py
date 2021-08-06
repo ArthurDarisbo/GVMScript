@@ -36,7 +36,7 @@ def print_log(category, message):
 
 # Initialize configuration file
 try:
-	config = configparser.ConfigParser()
+	config = configparser.ConfigParser(comment_prefixes=(';'), inline_comment_prefixes=('#'))
 	config.read("./config.ini")
 except Exception as e:
 	print_log("exception","Failed to find or read config file.")

@@ -1,9 +1,8 @@
-import gvmscript, sys
+import gvmscript
 import xml.etree.ElementTree as ET
 from auxlib import *
 
-main_actions = ("Create Targets and Tasks","Update Tasks","Get Latest Reports","Perform a Sanity Check")
-sub_menu = ("Create Targets", "Create Tasks","Create Targets and Tasks","Update Tasks")
+main_actions = ("Create Targets and Tasks","Create Targets","Create Tasks","Create/Update Tasks", "Get Latest Reports","Start Scans") # Delete tasks ?
 div = "================================================================"
 
 def parse_data(xml, data_type): # Gets and parses the output from CLI to a list
@@ -69,18 +68,13 @@ def show_list(opt_list, opt_name): # Shows a simple list on screen and gets the 
 	while True:
 		sel = input(color_default+"\nSelect one of the above options ["+str(default)+"]: ")
 		if sel == "":
-			if(opt_name == "Main action" and default == 0): # Submenu special case
-				return show_list(sub_menu, "Main action submenu")
-			else:
-				return(opt_list[default])
+			return(opt_list[default])
 		try:
 			int(sel)
 		except:
 			print(color_error+"\nInvalid character. Only natural numbers are accepted.")
 			continue
-		if(opt_name == "Main action" and sel == "0"): # Action submenu selected
-			return show_list(sub_menu, "Main action submenu")
-		elif(int(sel) >= 0 and int(sel) < len(opt_list)): # Valid input
+		if(int(sel) >= 0 and int(sel) < len(opt_list)): # Valid input
 			return(opt_list[int(sel)])
 		else: # Invalid input
 			print(color_error+"\nSelect a number between 0 and "+str(pos))
