@@ -23,21 +23,17 @@ if __name__ == "__main__":
 	hosts = get_hosts()
 	options = menus.main()
 	targets = gvmscript.run_cmd("<get_targets/>")
-	tasks = gvmscript.run_cmd("<get_tasks/>")
 	
 	for host in hosts:
-		if options["main_action"] == "Create Targets and Tasks":
-			options["target_id"] = gvmscript.create_target(host, targets, options)
-			options["task_id"] = gvmscript.create_task(host, targets, options)
-
-		elif options["main_action"] == "Create Targets":
-			options["target_id"] = gvmscript.create_target(host, targets, options)
+		if options["main_action"] == "Create Targets":
+			gvmscript.create_target(host, targets, options)
 
 		elif options["main_action"] == "Create Tasks":
-			options["task_id"] = gvmscript.create_task(host, targets, options)
+			gvmscript.create_task(host, targets, options, None)
 
-		elif options["main_action"] == "Create/Update Tasks":
-			options["task_id"] = gvmscript.create_task(host, targets, options)
+		elif options["main_action"] == "Modify Tasks":
+			tasks = gvmscript.run_cmd("<get_tasks/>")
+			gvmscript.create_task(host, targets, options, tasks)
 
 		elif options["main_action"] == "Get Latest Reports":
 			pass
