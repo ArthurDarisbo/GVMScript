@@ -12,8 +12,7 @@ def get_hosts():
 			hosts = file.read().splitlines()
 		return hosts
 	else:
-		print_log("error","Hosts file not found.")
-		sys.exit()
+		sys.exit("error","Hosts file not found.")
 
 if __name__ == "__main__": 
 	if not gvmscript.authenticate():
@@ -29,11 +28,10 @@ if __name__ == "__main__":
 			gvmscript.create_target(host, targets, options)
 
 		elif options["main_action"] == "Create Tasks":
-			gvmscript.create_task(host, targets, options, None)
+			gvmscript.create_task(host, targets, options)
 
 		elif options["main_action"] == "Modify Tasks":
-			tasks = gvmscript.run_cmd("<get_tasks/>")
-			gvmscript.create_task(host, targets, options, tasks)
+			gvmscript.create_task(host, targets, options)
 
 		elif options["main_action"] == "Get Latest Reports":
 			pass

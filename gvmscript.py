@@ -11,6 +11,7 @@ def run_cmd(xml): # Build a command with a XML object, sends it to GVM CLI and c
       return cmd_output
    except subprocess.CalledProcessError:
       logger.exception("Failed to run command: " + xml)
+      logger.exception("Failed to run command: " + xml)
       return None
 
 def nslookup(host): # Pings target and captures the response
@@ -33,21 +34,22 @@ def authenticate(): # Authentication test
 
 def parse_data(xml, data_type): # Gets and parses the output from CLI to a list
 	cmd_output = run_cmd(xml)
-	root = ET.fromstring(cmd_output).findall(data_type)
+	root = ET.fromstring(cmd_output)
 	parsed_data = []
 	try:
-		for x in root:
+		for x in root.findall(data_type):
 			id = x.attrib["id"]
 			name = x.find("name").text
 			parsed_data.append({"name": name, "id": id})
+		logger.info("Parsed data: "+str(parsed_data))
 	except KeyError:
 		return None
 	return parsed_data
 
-def find_target(host, targets): # Searches for host's target
-   root = ET.fromstring(targets).findall("target")
+def find_target(host, targets): # Searches for a host's target
+   root = ET.fromstring(targets)
    try:
-      for x in root:
+      for x in root.findall("target"):
          id = x.attrib["id"]
          hosts = x.find("hosts").text
          if hosts == host:
@@ -56,9 +58,25 @@ def find_target(host, targets): # Searches for host's target
       print_log("error", "Host "+host+" has no targets. Create a target first")
       return None
 
-def build_target(host, hostname, options): # Creates an XML object to create a target
+def get_tasks(target_id): # Get all tasks for host
+   parsed_tasks = []
+   cmd_output = run_cmd("<get_targets target_id='"+target_id+"' tasks='1'/>")
+   if "OK" in cmd_output and "task id" in cmd_output:
+      tasks = cmd_output.split("<tasks>")[1].split("</tasks>")[0].split("</task>")
+      for task in tasks:
+         if task == "":
+            continue
+         id = task.split("<task id=\"")[1].split("\"")[0]
+         name = task.split("<name>")[1].split("</name>")[0]
+         parsed_tasks.append({"name": name, "id": id})
+      logger.info("Parsed tasks: "+str(parsed_tasks))
+   else:
+      return None
+   return parsed_tasks
+
+def build_target(host, options): # Builds an XML object to create a target
    xml = "<create_target>"
-   xml += "<name>"+hostname+"</name>"
+   xml += "<name>"+options["hostname"]+"</name>"
    xml += "<hosts>"+host+"</hosts>"
    xml += "<port_list id='"+options["port_list"]+"'></port_list>"
    if(config["settings"]["use_comments"] == "True"):
@@ -68,80 +86,93 @@ def build_target(host, hostname, options): # Creates an XML object to create a t
    xml += "</create_target>"
    return xml
 
-def build_task(hostname, options, task_id = "None"): # Creates an XML object to create or modify a task
+def build_task(host, options, task_id = "None"): # Builds an XML object to create or modify a task and evaluates the output
    if options["main_action"] == "Create Tasks":
       xml = "<create_task>"
-      xml += "<target id='"+options["target_id"]+"'/>"   
-      if options["alerts"] != None:
-         xml += "<alert id='"+options["alerts"]+"'/>"  
+      xml += "<target id='"+options["target_id"]+"'/>"         
+      xml += "<name>"+options["hostname"]+"</name>"
+
    else:
-      xml = "<modify_task task_id='"+task_id+"'></modify_task>"
+      xml = "<modify_task task_id='"+task_id+"'>"
 
-   xml += "<name>"+hostname+"</name>"
-   xml += "<config id='"+options["scan_config"]+"'/>"
-   xml += "<scanner id='"+options["scanner"]+"'/>"
+   if options["main_action"] == "Create Tasks" or options["modify"] == "Scan Config":
+      xml += "<config id='"+options["scan_config"]+"'/>"
 
-   if(config["settings"]["use_comments"] == "True"):
-      xml += "<comment>"+config["settings"]["comment"]+"</comment>"
-   if options["schedule"] != None:
-      xml += "<schedule id='"+options["schedule"]+"'/>"  
-   
-   if options["main_action"] == "Create Tasks":
-      xml += "<alterable>"+config["parameters"]["alterable_task"]+"</alterable>"
+   if options["main_action"] == "Create Tasks" or options["modify"] == "Alerts":
+      if options["alerts"] != None:
+         xml += "<alert id='"+options["alerts"]+"'/>"
+
+   if options["main_action"] == "Create Tasks" or options["modify"] == "Schedule":
+      if options["schedule"] != None:
+         xml += "<schedule id='"+options["schedule"]+"'/>"  
+
+   if options["main_action"] == "Create Tasks" or options["modify"] == "Scanner":
+      xml += "<scanner id='"+options["scanner"]+"'/>"
+
+   if options["main_action"] == "Create Tasks" or options["modify"] == "Scan Order":
       xml += "<hosts_ordering>"+options["order"]+"</hosts_ordering>"
-   xml += "<preferences>"
+
+   if options["main_action"] == "Create Tasks":
+      if(config["settings"]["use_comments"] == "True"):
+         xml += "<comment>"+config["settings"]["comment"]+"</comment>"
+
+      xml += "<alterable>"+config["parameters"]["alterable_task"]+"</alterable>"
+   
+   if options["main_action"] == "Create Tasks" or "Maximum" in options["modify"]:
+      xml += "<preferences>"
 
    if options["main_action"] == "Create Tasks":
       xml += "<preference>"
       xml += "<scanner_name>assets_apply_overrides</scanner_name>"
       xml += "<value>"+config["parameters"]["overrides"]+"</value>"
       xml += "</preference>"
-   
-   xml += "<preference>"
-   xml += "<scanner_name>in_assets</scanner_name>"
-   xml += "<value>"+config["parameters"]["result_assets"]+"</value>"
-   xml += "</preference>"
-   xml += "<preference>"
-   xml += "<scanner_name>auto_delete</scanner_name>"
-   xml += "<value>"+config["parameters"]["auto_delete"]+"</value>"
-   xml += "</preference>"
-   xml += "<preference>"
-   xml += "<scanner_name>auto_delete_data</scanner_name>"
-   xml += "<value>"+config["parameters"]["delete_over"]+"</value>"
-   xml += "</preference>"
-   xml += "<preference>"
-   xml += "<scanner_name>max_checks</scanner_name>"
-   xml += "<value>"+config["parameters"]["max_nvt"]+"</value>"
-   xml += "</preference>" 
-   xml += "<preference>"
-   xml += "<scanner_name>max_hosts</scanner_name>"
-   xml += "<value>"+config["parameters"]["max_scanned"]+"</value>"
-   xml += "</preference>"
-   xml += "</preferences>"
+      xml += "<preference>"
+      xml += "<scanner_name>in_assets</scanner_name>"
+      xml += "<value>"+config["parameters"]["result_assets"]+"</value>"
+      xml += "</preference>"
+      xml += "<preference>"
+      xml += "<scanner_name>auto_delete</scanner_name>"
+      xml += "<value>"+config["parameters"]["auto_delete"]+"</value>"
+      xml += "</preference>"
+      xml += "<preference>"
+      xml += "<scanner_name>auto_delete_data</scanner_name>"
+      xml += "<value>"+config["parameters"]["delete_over"]+"</value>"
+      xml += "</preference>"
+
+   if options["main_action"] == "Create Tasks" or options["modify"] == "Maximum concurrently executed NVTs per host":
+      xml += "<preference>"
+      xml += "<scanner_name>max_checks</scanner_name>"
+      xml += "<value>"+config["parameters"]["max_nvt"]+"</value>"
+      xml += "</preference>" 
+
+   if options["main_action"] == "Create Tasks" or options["modify"] == "Maximum concurrently scanned hosts":
+      xml += "<preference>"
+      xml += "<scanner_name>max_hosts</scanner_name>"
+      xml += "<value>"+config["parameters"]["max_scanned"]+"</value>"
+      xml += "</preference>"
+
+   if options["main_action"] == "Create Tasks" or "Maximum" in options["modify"]:
+      xml += "</preferences>"
 
    if options["main_action"] == "Create Tasks":
       xml += "</create_task>"
    else:
       xml += "</modify_task>"
 
-   return xml
-
-def operate_task(host, hostname, options):
-   xml = build_task(hostname, options)
    cmd_output = run_cmd(xml)
 
    if "status=\"201\"" in cmd_output:
-      if options["main_action"]:
-         print_log("success", "Successfully created a task for host "+host)
-      else:
-         print_log("success", "Successfully modified a task for host "+host)
+      print_log("success", "Successfully created a task for host "+host)
       id = cmd_output.split("id=\"")[1].split("\"")[0]
       return id
+   elif "status=\"200\"" in cmd_output:
+      print_log("success", "Successfully modified a task for host "+host)
+   elif "Config and Scanner types mismatch" in cmd_output:
+      print_log("error", "Config and Scanner types mismatch in a task of host "+host)
    else:
       print_log("error", "Unable to create or modify a task for host "+host)
-      return None
 
-def create_target(host, targets, options):
+def create_target(host, targets, options): # Creates a target
    ns_result = nslookup(host)
 
    if ns_result == None and config["settings"]["ignore_ping"] == "False": # Ping failed and necessary
@@ -152,53 +183,55 @@ def create_target(host, targets, options):
       print_log("warning", "A target with host "+host+" already exists")
 
    if "name" in ns_result:
-      hostname = ns_result.split("name = ")[1].split("\n")[0][:-1]
+      options["hostname"] = ns_result.split("name = ")[1].split("\n")[0][:-1]
    else:
-      hostname = host
+      options["hostname"] = host
 
    if config["settings"]["custom_target_sufix"] == "True":
-      hostname += " - " + config["settings"]["target_sufix"]
+      options["hostname"] += " - " + config["settings"]["target_sufix"]
 
-   xml = build_target(host, hostname, options)
+   xml = build_target(host, options)
    cmd_output = run_cmd(xml)
 
    if "status=\"201\"" in cmd_output:
       print_log("success", "Successfully created a target for host "+host)
       id = cmd_output.split("id=\"")[1].split("\"")[0]
-      #return id
+      return id
    elif "Target exists already" in cmd_output:
-      print_log("warning", "Same exact target for host "+host+" already exists. Skipping...")
-      #return None
+      print_log("error", "Same exact target for host "+host+" already exists. Skipping...")
+      return None
    else:
       print_log("error", "Unable to create target for host "+host)
-      #return None
+      return None
 
-def create_task(host, targets, options, tasks = "None"): # Create or modify a task
+def create_task(host, targets, options): # Creates or modifies a task
    ns_result = nslookup(host)
 
    if ns_result == None and config["settings"]["ignore_ping"] == "False": # Ping failed and necessary
       print_log("error", "Unable to ping host "+host+". Skipping...")
-      return None
+      return 
 
    if "name" in ns_result: # NS Lookup successful 
-      hostname = ns_result.split("name = ")[1].split("\n")[0][:-1]
+      options["hostname"] = ns_result.split("name = ")[1].split("\n")[0][:-1]
    else:
-      hostname = host
+      options["hostname"] = host
 
    if host not in targets: # No target found for host
       print_log("error", "Host "+host+" has no targets. Unable to create or modify a task")
-      return None
+      return 
 
    if config["settings"]["custom_task_sufix"] == "True": # Add sufix
-      hostname += " - " + config["settings"]["task_sufix"]
+      options["hostname"] += " - " + config["settings"]["task_sufix"]
 
    options["target_id"] = find_target(host, targets) # Get target ID
    if options["target_id"] == None: # Propagate error
-      return None
+      return
 
    if options["main_action"] == "Create Tasks": # Create new task
-      cmd_output = operate_task(host, hostname, options)
+      build_task(host, options)
    else: # Modify all tasks
-      task_list = parse_data(tasks, "task") # Gets all tasks
+      task_list = get_tasks(options["target_id"])
+      if task_list == None:
+         print_log("error", "No tasks found for host "+host)
       for task in task_list:
-         cmd_output = operate_task(host, hostname, options)
+         build_task(host, options, task["id"])

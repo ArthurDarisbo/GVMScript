@@ -11,7 +11,7 @@ color_ok = "\033[92m"
 # Initialize logger
 logger = logging.getLogger()
 date_fmt = "%d/%m/%Y - %I:%M:%S %p"
-msg_fmt = "%(asctime)s - %(message)s - %(levelname)-s"
+msg_fmt = "%(asctime)s - %(levelname)-s - %(message)s"
 logging.basicConfig(level=logging.INFO, filename="log.log", format=msg_fmt, datefmt=date_fmt)
 
 # Prints and logs messages
@@ -20,19 +20,19 @@ def print_log(category, message):
 	msg_fmt = date_fmt + " " + category.upper() + ": " + message
 	if(category == "exception"):
 		print(color_error + msg_fmt)
-		logger.exception(message)
+		logger.exception(message.replace("\n", " "))
 	elif(category == "error"):
 		print(color_error + msg_fmt)
-		logger.error(message)
+		logger.error(message.replace("\n", " "))
 	elif(category == "warning"):
 		print(color_warning + msg_fmt)
-		logger.warning(message)
+		logger.warning(message.replace("\n", " "))
 	elif(category == "info"):
 		print(color_info + msg_fmt)
-		logger.info(message)
+		logger.info(message.replace("\n", " "))
 	elif(category == "success"):
 		print(color_ok + msg_fmt)
-		logger.info(message)
+		logger.info(message.replace("\n", " "))
 
 # Initialize configuration file
 try:
