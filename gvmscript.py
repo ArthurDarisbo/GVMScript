@@ -1,6 +1,6 @@
-import subprocess
+import subprocess, os, base64
 from auxlib import *
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET 
 
 def run_cmd(xml): # Build a command with a XML object, sends it to GVM CLI and captures the response
    try:
@@ -46,7 +46,7 @@ def parse_data(xml, data_type): # Gets and parses the output from CLI to a list
 		return None
 	return parsed_data
 
-def find_target(host, targets): # Searches for a host's target
+def get_target(host, targets): # Searches for a host's target
    root = ET.fromstring(targets)
    try:
       for x in root.findall("target"):
@@ -223,7 +223,7 @@ def create_task(host, targets, options): # Creates or modifies a task
    if config["settings"]["custom_task_sufix"] == "True": # Add sufix
       options["hostname"] += " - " + config["settings"]["task_sufix"]
 
-   options["target_id"] = find_target(host, targets) # Get target ID
+   options["target_id"] = get_target(host, targets) # Get target ID
    if options["target_id"] == None: # Propagate error
       return
 
@@ -231,7 +231,64 @@ def create_task(host, targets, options): # Creates or modifies a task
       build_task(host, options)
    else: # Modify all tasks
       task_list = get_tasks(options["target_id"])
+
       if task_list == None:
          print_log("error", "No tasks found for host "+host)
+
       for task in task_list:
          build_task(host, options, task["id"])
+
+def get_reports(host, targets, options):
+   options["target_id"] = get_target(host, targets)
+
+   if options["target_id"] == None: # Propagate error
+      print_log("error", "Host "+host+" has no target")
+      return
+
+   task_list = get_tasks(options["target_id"])
+
+   if task_list == None:
+      print_log("error", "No tasks found for host "+host)
+
+   for task in task_list:
+      task_data = run_cmd("<get_tasks task_id='"+task["id"]+"' details='1'/>")
+      if "report id" in task_data:
+         report_id = task_data.split("<last_report><report id=\"")[1].split("\"")[0]
+         cmd_output = run_cmd("<get_reports report_id='"+report_id+"' format_id='"+config["reports"]["report_format"]+"'/>")
+         extension = cmd_output.split("extension=\"")[1].split("\"")[0]
+         report = cmd_output.split("</report_format>")[1].split("</report>")[0]
+         filename = config["reports"]["report_folder"] + "/" + host + "_" + task["name"] + "." + extension
+
+         if not os.path.exists(config["reports"]["report_folder"]):
+            os.makedirs(config["reports"]["report_folder"])
+
+         with open(filename, "wb") as file:
+            if extension == "pdf": # Convert from base64
+               file.write(base64.b64decode(report))
+            else:
+               file.write(report)
+
+         print_log("success", "Exported latest report from task "+task["name"]+" of host "+host)
+
+      else:
+         print_log("warning", "Host "+host+" has no reports")
+
+def start_tasks(host, targets, options):
+   options["target_id"] = get_target(host, targets)
+
+   if options["target_id"] == None: # Propagate error
+      print_log("error", "Host "+host+" has no target")
+      return
+
+   task_list = get_tasks(options["target_id"])
+
+   if task_list == None:
+      print_log("error", "No tasks found for host "+host)
+
+   for task in task_list:
+      cmd_output = run_cmd("<start_task task_id='"+task["id"]+"'/>")
+
+   if "status=\"202\"" in cmd_output:
+      print_log("success", "Started task "+task["name"]+" of host "+host)
+   else:
+      print_log("error", "Unable to start task "+task["name"]+" of host "+host)

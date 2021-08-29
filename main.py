@@ -2,10 +2,8 @@ import sys, os, menus, gvmscript
 from auxlib import *
 
 # sudo chmod -R o+rw /opt/gvm/var/run/
-# gvm-cli --gmp-username gvmadmin --gmp-password StrongPass socket --xml "<get_tasks/>"
 
-# Gets host list
-def get_hosts(): 
+def get_hosts(): # Gets host list
 	path = config["settings"]["hosts_file"]
 	if(os.path.exists(path)): # Path exists
 		with open(path, "r") as file:
@@ -27,14 +25,11 @@ if __name__ == "__main__":
 		if options["main_action"] == "Create Targets":
 			gvmscript.create_target(host, targets, options)
 
-		elif options["main_action"] == "Create Tasks":
-			gvmscript.create_task(host, targets, options)
-
-		elif options["main_action"] == "Modify Tasks":
+		elif options["main_action"] == "Create Tasks" or options["main_action"] == "Modify Tasks":
 			gvmscript.create_task(host, targets, options)
 
 		elif options["main_action"] == "Get Latest Reports":
-			pass
+			gvmscript.get_reports(host, targets, options)
 
-		elif options["main_action"] == "Start Scans":
-			pass
+		elif options["main_action"] == "Start Tasks":
+			gvmscript.start_tasks(host, targets, options)

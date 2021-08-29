@@ -2,7 +2,7 @@ import gvmscript
 import xml.etree.ElementTree as ET
 from auxlib import *
 
-main_actions = ("Create Targets","Create Tasks","Modify Tasks", "Get Latest Reports","Start Scans")
+main_actions = ("Create Targets","Create Tasks","Modify Tasks", "Get Latest Reports","Start Tasks")
 div = "================================================================"
 
 def show_data(options, parsed_data, opt_name): # Show data and return the ID of the selected option
@@ -52,6 +52,7 @@ def show_list(opt_list, opt_name): # Shows a simple list on screen and gets the 
 		print(str(pos)+" - "+opt)
 		if opt != opt_list[-1]:
 			pos += 1
+
 	# Get selection
 	while True:
 		sel = input(color_default+"\nSelect one of the above options ["+default+"]: ")
@@ -76,47 +77,36 @@ def main():
 		parsed_output = gvmscript.parse_data("<get_port_lists/>", "port_list")
 		options["port_list"] = show_data(options, parsed_output, "Port list")
 
-	elif options["main_action"] == "Create Tasks":
-		parsed_output = gvmscript.parse_data("<get_configs/>", "config")
-		options["scan_config"] = show_data(options, parsed_output, "Scan config")
+	elif options["main_action"] == "Create Tasks" or options["main_action"] == "Modify Tasks":
+		if options["main_action"] == "Modify Tasks":
+			modify = ["Scan Config", "Alerts", "Schedule", "Scanner", "Scan Order", "Maximum concurrently executed NVTs per host", "Maximum concurrently scanned hosts"]
+			options["modify"] = show_list(modify, "Modify Task Parameter")
 
-		parsed_output = gvmscript.parse_data("<get_alerts/>", "alerts")
-		options["alerts"] = show_data(options, parsed_output, "Alerts")
-
-		parsed_output = gvmscript.parse_data("<get_schedules/>", "schedule")
-		options["schedule"] = show_data(options, parsed_output, "Schedule")
-
-		parsed_output = gvmscript.parse_data("<get_scanners/>", "scanner")
-		options["scanner"] = show_data(options, parsed_output, "Scanner")
-
-		order = ["Sequential","Random","Reverse"]
-		options["order"] = show_list(order, "Scan order")
-	
-	elif options["main_action"] == "Modify Tasks":
-		modify = ["Scan Config", "Alerts", "Schedule", "Scanner", "Scan Order", "Maximum concurrently executed NVTs per host", "Maximum concurrently scanned hosts"]
-		options["modify"] = show_list(modify, "Modify Task Parameter")
-
-		if options["modify"] == "Scan Config":
+		if options["main_action"] == "Create Tasks" or options["modify"] == "Scan Config":
 			parsed_output = gvmscript.parse_data("<get_configs/>", "config")
 			options["scan_config"] = show_data(options, parsed_output, "Scan config")
 
-		elif options["modify"] == "Alerts":
+		if options["main_action"] == "Create Tasks" or options["modify"] == "Alerts":
 			parsed_output = gvmscript.parse_data("<get_alerts/>", "alerts")
 			options["alerts"] = show_data(options, parsed_output, "Alerts")
 
-		elif options["modify"] == "Schedule":
+		if options["main_action"] == "Create Tasks" or options["modify"] == "Schedule":
 			parsed_output = gvmscript.parse_data("<get_schedules/>", "schedule")
 			options["schedule"] = show_data(options, parsed_output, "Schedule")
 
-		elif options["modify"] == "Scanner":
+		if options["main_action"] == "Create Tasks" or options["modify"] == "Scanner":
 			parsed_output = gvmscript.parse_data("<get_scanners/>", "scanner")
 			options["scanner"] = show_data(options, parsed_output, "Scanner")
 
-		elif options["modify"] == "Scan Order":
+		if options["main_action"] == "Create Tasks" or options["modify"] == "Scan order":
 			order = ["Sequential","Random","Reverse"]
 			options["order"] = show_list(order, "Scan order")
 
+	elif options["main_action"] == "Get Latest Reports":
+		pass
+
+	elif options["main_action"] == "Start Tasks":
+		pass
+
 	logger.info(str(options))
-
-
 	return options
