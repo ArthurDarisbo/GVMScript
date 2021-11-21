@@ -13,6 +13,10 @@ def get_hosts(): # Gets host list
 		sys.exit("error","Hosts file not found.")
 
 if __name__ == "__main__": 
+	if len(sys.argv) != 3:
+		print_log("error", "Please insert only your username and password as parameters. Example: main.py username password")
+		sys.exit()
+
 	if not gvmscript.authenticate():
 		print_log("error","Autentication failed. Check your credentials.")
 		sys.exit()

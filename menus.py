@@ -2,7 +2,7 @@ import gvmscript
 import xml.etree.ElementTree as ET
 from auxlib import *
 
-main_actions = ("Create Targets","Create Tasks","Modify Tasks", "Get Latest Reports","Start Tasks")
+main_actions = ("Create Targets","Create Tasks","Modify Tasks", "Start Tasks", "Get Latest Reports")
 div = "================================================================"
 
 def show_data(options, parsed_data, opt_name): # Show data and return the ID of the selected option

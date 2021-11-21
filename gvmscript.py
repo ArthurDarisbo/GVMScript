@@ -1,12 +1,12 @@
-import subprocess, os, base64
+import subprocess, os, base64, sys
 from auxlib import *
 import xml.etree.ElementTree as ET 
 
 def run_cmd(xml): # Build a command with a XML object, sends it to GVM CLI and captures the response
    try:
-      cmd_input = ["gvm-cli", "--gmp-username", config["login"]["user"], "--gmp-password", config["login"]["password"], "socket", "--xml", xml]
+      cmd_input = ["gvm-cli", "--gmp-username", sys.argv[1], "--gmp-password", sys.argv[2], "socket", "--xml", xml]
       cmd_output = subprocess.run(cmd_input, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode("utf-8")
-      logging.info("XML Command input: "+str(cmd_input))
+      #logging.info("XML Command input: "+str(cmd_input))
       logging.info("XML Command output: "+cmd_output)
       return cmd_output
    except subprocess.CalledProcessError:
